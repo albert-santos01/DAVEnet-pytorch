@@ -1,0 +1,37 @@
+{
+    
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "Train",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "run.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--data-train", "/data/upftfg03/asantos/PlacesAudio_400k_distro/metadata/train.json",
+                "--data-val", "/data/upftfg03/asantos/PlacesAudio_400k_distro/metadata/val.json",
+                "--exp-dir", "/home/asantos/DAVEnet_exo",
+                "--use_wandb",
+                "--wandb-project", "DAVEnet",
+                "--run_name", "debug All"
+            ]
+        },
+        {
+            "name": "Train with subset",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "run.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--data-train", "/data/upftfg03/asantos/PlacesAudio_400k_distro/metadata/subsets/train.json",
+                "--data-val", "/data/upftfg03/asantos/PlacesAudio_400k_distro/metadata/subsetsval.json",
+                "--exp-dir", "/home/asantos/DAVEnet_exo",
+                "--use_wandb",
+                "--wandb-project", "DAVEnet_subset",
+                "--run_name", "debug All"
+            ]
+        }
+    ]
+}
