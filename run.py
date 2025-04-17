@@ -5,6 +5,7 @@ import pickle
 import sys
 import time
 import torch
+import wandb
 
 import dataloaders
 import models
@@ -47,6 +48,12 @@ parser.add_argument("--pretrained-image-model", action="store_true",
 parser.add_argument("--margin", type=float, default=1.0, help="Margin paramater for triplet loss")
 parser.add_argument("--simtype", type=str, default="MISA",
         help="matchmap similarity function", choices=["SISA", "MISA", "SIMA"])
+parser.add_argument("--use_wandb", action="store_true",
+        help="Use wandb for logging")
+parser.add_argument("--wandb_project", type=str, default="",
+        help="wandb project name")
+parser.add_argument("--run_name", type=str, default="",
+        help="wandb run name")
 
 args = parser.parse_args()
 
@@ -83,4 +90,13 @@ if not args.resume:
     with open("%s/args.pkl" % args.exp_dir, "wb") as f:
         pickle.dump(args, f)
 
+##Albert: Wandb
+if args.use_wandb:
+    if args.run_name == "":
+        wandb.init(project=args.wandb_project)
+    else:
+        wandb.init(project=args.wandb_project, name=args.run_name)
+    wandb.config.update(args)
+    wandb.watch(audio_model)
+    wandb.watch(image_model)        
 train(audio_model, image_model, train_loader, val_loader, args)
