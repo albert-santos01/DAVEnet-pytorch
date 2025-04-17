@@ -8,8 +8,11 @@ def calc_recalls(image_outputs, audio_outputs, nframes, simtype='MISA'):
 	Computes recall at 1, 5, and 10 given encoded image and audio outputs.
 	"""
     S = compute_matchmap_similarity_matrix(image_outputs, audio_outputs, nframes, simtype=simtype)
+    # S is a similarity matrix where S[i,j] is the similarity between image i and audio j
+    # Images are the rows
+    # Audios are the columns
     n = S.size(0)
-    A2I_scores, A2I_ind = S.topk(10, 0)
+    A2I_scores, A2I_ind = S.topk(10, 0) 
     I2A_scores, I2A_ind = S.topk(10, 1)
     A_r1 = AverageMeter()
     A_r5 = AverageMeter()
@@ -30,7 +33,7 @@ def calc_recalls(image_outputs, audio_outputs, nframes, simtype='MISA'):
             A_r1.update(1)
         else:
             A_r1.update(0)
-        if I_foundind == 0:
+        if I_foundind == 0: # A -> I
             I_r1.update(1)
         else:
             I_r1.update(0)
@@ -97,7 +100,7 @@ def sampled_margin_rank_loss(image_outputs, audio_outputs, nframes, margin=1., s
     for i in range(n):
         I_imp_ind = i
         A_imp_ind = i
-        while I_imp_ind == i:
+        while I_imp_ind == i: #Try to sample a different image
             I_imp_ind = np.random.randint(0, n)
         while A_imp_ind == i:
             A_imp_ind = np.random.randint(0, n)
