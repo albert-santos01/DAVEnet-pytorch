@@ -6,6 +6,8 @@ import sys
 import time
 import torch
 import wandb
+import warnings
+warnings.filterwarnings("ignore")
 
 import dataloaders
 import models
@@ -85,10 +87,16 @@ if not bool(args.exp_dir):
         args.lr, args.n_epochs)
 
 if not args.resume:
-    print("\nexp_dir: %s" % args.exp_dir)
-    os.makedirs("%s/models" % args.exp_dir)
-    with open("%s/args.pkl" % args.exp_dir, "wb") as f:
-        pickle.dump(args, f)
+        print("\nexp_dir: %s" % args.exp_dir)
+        exp_dir = args.exp_dir  
+        counter = 1
+        while os.path.exists("%s/models" % exp_dir):
+                exp_dir = f"{args.exp_dir}_{counter}"
+                counter += 1
+        os.makedirs("%s/models" % exp_dir)
+        args.exp_dir = exp_dir
+        with open("%s/args.pkl" % args.exp_dir, "wb") as f:
+                pickle.dump(args, f)
 
 ##Albert: Wandb
 if args.use_wandb:
