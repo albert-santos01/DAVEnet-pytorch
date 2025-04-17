@@ -1,3 +1,4 @@
+import wandb
 import time
 import shutil
 import torch
@@ -13,11 +14,13 @@ def train(audio_model, image_model, train_loader, test_loader, args):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     loss_meter = AverageMeter()
+    
     progress = []
     best_epoch, best_acc = 0, -np.inf
     global_step, epoch = 0, 0
     start_time = time.time()
     exp_dir = args.exp_dir
+    print_size_flag = True
 
     def _save_progress():
         progress.append([epoch, global_step, best_epoch, best_acc, 
@@ -79,10 +82,13 @@ def train(audio_model, image_model, train_loader, test_loader, args):
     audio_model.train()
     image_model.train()
     while True:
+        #TODO: Check if epoch here is += 1
         adjust_learning_rate(args.lr, args.lr_decay, optimizer, epoch)
         end_time = time.time()
         audio_model.train()
         image_model.train()
+        loss_batch_loop = 0
+
         for i, (image_input, audio_input, nframes) in enumerate(train_loader):
             # measure data loading time
             data_time.update(time.time() - end_time)
@@ -96,6 +102,11 @@ def train(audio_model, image_model, train_loader, test_loader, args):
             audio_output = audio_model(audio_input)
             image_output = image_model(image_input)
 
+            if print_size_flag:
+                print(f"-----------IN imgs: {image_input.shape}, -> OUT {image_output.shape}")
+                print(f"-----------IN auds: {audio_input.shape}, -> OUT {audio_output.shape}")
+                print_size_flag = False
+
             pooling_ratio = round(audio_input.size(-1) / audio_output.size(-1))
             nframes.div_(pooling_ratio)
 
@@ -106,6 +117,7 @@ def train(audio_model, image_model, train_loader, test_loader, args):
             optimizer.step()
 
             # record loss
+            loss_batch_loop += loss.item()
             loss_meter.update(loss.item(), B)
             batch_time.update(time.time() - end_time)
 
@@ -121,11 +133,35 @@ def train(audio_model, image_model, train_loader, test_loader, args):
                     return
 
             end_time = time.time()
+            #Log steps statistics
+            if args.use_wandb:
+                wandb.log({"train_loss": loss_meter.val,
+                           "train_batch_time": batch_time.val,
+                           "train_data_time": data_time.val,
+                           "global_step": global_step})
             global_step += 1
+        
+        #Log epoch statistics
+        print(f'Loss epoch {epoch}: {loss_batch_loop/len(train_loader)}')
+        if args.use_wandb:
+            wandb.log({"epoch": epoch,
+                       "Train_loss_epoch": loss_batch_loop/len(train_loader),
+                       "Train_loss_meter": loss_meter.avg,
+                       "Train_batch_time_epoch": batch_time.avg,
+                       "Train_data_time_epoch": time.time() - end_time,
+                       "Learning_rate": optimizer.param_groups[0]['lr']}
+                       ) 
 
-        recalls = validate(audio_model, image_model, test_loader, args)
+                
+
+        recalls = validate(audio_model, image_model, test_loader, args, epoch)
         
         avg_acc = (recalls['A_r10'] + recalls['I_r10']) / 2
+        if args.use_wandb:
+            wandb.log({"avg_acc": avg_acc,
+                       "epoch": epoch})
+            
+        
 
         torch.save(audio_model.state_dict(),
                 "%s/models/audio_model.%d.pth" % (exp_dir, epoch))
@@ -143,7 +179,7 @@ def train(audio_model, image_model, train_loader, test_loader, args):
         _save_progress()
         epoch += 1
 
-def validate(audio_model, image_model, val_loader, args):
+def validate(audio_model, image_model, val_loader, args, epoch=None):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     batch_time = AverageMeter()
     if not isinstance(audio_model, torch.nn.DataParallel):
@@ -162,6 +198,7 @@ def validate(audio_model, image_model, val_loader, args):
     A_embeddings = [] 
     frame_counts = []
     with torch.no_grad():
+        val_batch_loop = 0
         for i, (image_input, audio_input, nframes) in enumerate(val_loader):
             image_input = image_input.to(device)
             audio_input = audio_input.to(device)
@@ -169,6 +206,11 @@ def validate(audio_model, image_model, val_loader, args):
             # compute output
             image_output = image_model(image_input)
             audio_output = audio_model(audio_input)
+            #TODO:Introduce here the val loss
+            val_loss = sampled_margin_rank_loss(image_output, audio_output,
+                nframes, margin=args.margin, simtype=args.simtype)
+            val_batch_loop += val_loss.item()
+            
 
             image_output = image_output.to('cpu').detach()
             audio_output = audio_output.to('cpu').detach()
@@ -195,12 +237,26 @@ def validate(audio_model, image_model, val_loader, args):
         I_r5 = recalls['I_r5']
         A_r1 = recalls['A_r1']
         I_r1 = recalls['I_r1']
-
+    print(f'Validation loss: {val_batch_loop/len(val_loader)}')
     print(' * Audio R@10 {A_r10:.3f} Image R@10 {I_r10:.3f} over {N:d} validation pairs'
           .format(A_r10=A_r10, I_r10=I_r10, N=N_examples), flush=True)
     print(' * Audio R@5 {A_r5:.3f} Image R@5 {I_r5:.3f} over {N:d} validation pairs'
           .format(A_r5=A_r5, I_r5=I_r5, N=N_examples), flush=True)
     print(' * Audio R@1 {A_r1:.3f} Image R@1 {I_r1:.3f} over {N:d} validation pairs'
           .format(A_r1=A_r1, I_r1=I_r1, N=N_examples), flush=True)
+    
+
+    
+    if args.use_wandb:
+        #TODO: Investigate if A_r means A->I or I->A
+        wandb.log({ "val_loss": val_batch_loop/len(val_loader),
+                    "I->A_R@10": A_r10,
+                    "I->A_R@5": A_r5,
+                    "I->A_R@1": A_r1,
+                    "A->I_R@10": I_r10,
+                    "A->I_R@5": I_r5,
+                    "A->I_R@1": I_r1,
+                    "epoch": epoch,}
+                    )
 
     return recalls
