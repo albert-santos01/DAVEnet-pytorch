@@ -14,7 +14,7 @@
                 "--data-val", "/data/upftfg03/asantos/PlacesAudio_400k_distro/metadata/val.json",
                 "--exp-dir", "/home/asantos/DAVEnet_exo",
                 "--use_wandb",
-                "--wandb-project", "DAVEnet",
+                "--wandb_project", "DAVEnet",
                 "--run_name", "debug All"
             ]
         },
@@ -26,10 +26,10 @@
             "console": "integratedTerminal",
             "args": [
                 "--data-train", "/data/upftfg03/asantos/PlacesAudio_400k_distro/metadata/subsets/train.json",
-                "--data-val", "/data/upftfg03/asantos/PlacesAudio_400k_distro/metadata/subsetsval.json",
+                "--data-val", "/data/upftfg03/asantos/PlacesAudio_400k_distro/metadata/subsets/val.json",
                 "--exp-dir", "/home/asantos/DAVEnet_exo",
                 "--use_wandb",
-                "--wandb-project", "DAVEnet_subset",
+                "--wandb_project", "DAVEnet_subset",
                 "--run_name", "debug All"
             ]
         }
