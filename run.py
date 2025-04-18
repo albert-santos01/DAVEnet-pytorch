@@ -12,7 +12,7 @@ warnings.filterwarnings("ignore")
 import dataloaders
 import models
 from steps import train, validate
-
+print("THIS IS DAVEnet!!!!!!!!!!!!!!!!!!!")
 print("I am process %s, running on %s: starting (%s)" % (
         os.getpid(), os.uname()[1], time.asctime()))
 
@@ -56,6 +56,8 @@ parser.add_argument("--wandb_project", type=str, default="",
         help="wandb project name")
 parser.add_argument("--run_name", type=str, default="",
         help="wandb run name")
+parser.add_argument('--use_cuda', action='store_true', help='Use cuda')
+parser.set_defaults(use_cuda=False)
 
 args = parser.parse_args()
 
@@ -67,6 +69,21 @@ if args.resume:
         args = pickle.load(f)
 args.resume = resume
         
+# Ensure cuda context
+print("Is cuda available",torch.cuda.is_available()) 
+
+print("CUDA_VISIBLE_DEVICES:", os.environ.get("CUDA_VISIBLE_DEVICES", "Not Set"))
+
+if args.use_cuda:
+        if not torch.cuda.is_available():
+                raise ValueError("CUDA is not available. Please run with flag --use_cuda False")
+
+args.gpus = list(range(torch.cuda.device_count()))
+print('Using GPU:', args.gpus)
+print('Number of of cores allocated:',len(os.sched_getaffinity(0)))
+print(f"{os.sched_getaffinity(0)} CPU cores that job {args.job_id} is allowed to run on")  # Will show the CPU cores your job is allowed to run on
+
+
 # print(args)
 # Instead let's use the ssl-tie printing
 print('\n ******************Training Args*************************')
