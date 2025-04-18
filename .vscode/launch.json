@@ -27,7 +27,7 @@
             "args": [
                 "--data-train", "/data/upftfg03/asantos/PlacesAudio_400k_distro/metadata/subsets/train.json",
                 "--data-val", "/data/upftfg03/asantos/PlacesAudio_400k_distro/metadata/subsets/val.json",
-                "--exp-dir", "/home/asantos/DAVEnet_exo",
+                "--exp-dir", "/home/asantos/DAVEnet_Dump/exp",
                 "--use_wandb",
                 "--wandb_project", "DAVEnet_subset",
                 "--run_name", "debug All"
