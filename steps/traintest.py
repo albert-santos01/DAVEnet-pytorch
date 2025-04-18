@@ -136,7 +136,7 @@ def train(audio_model, image_model, train_loader, test_loader, args):
             end_time = time.time()
             #Log steps statistics
             if args.use_wandb:
-                wandb.log({"train_loss": loss_meter.val,
+                wandb.log({"train_loss_step": loss_meter.val,
                            "train_batch_time": batch_time.val,
                            "train_data_time": data_time.val,
                            "global_step": global_step})
