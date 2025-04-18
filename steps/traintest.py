@@ -88,6 +88,7 @@ def train(audio_model, image_model, train_loader, test_loader, args):
         audio_model.train()
         image_model.train()
         loss_batch_loop = 0
+        start_epoch = time.time()
 
         for i, (image_input, audio_input, nframes) in enumerate(train_loader):
             # measure data loading time
@@ -149,7 +150,7 @@ def train(audio_model, image_model, train_loader, test_loader, args):
                        "Train_loss_epoch": loss_batch_loop/len(train_loader),
                        "Train_loss_meter": loss_meter.avg,
                        "Train_batch_time_epoch": batch_time.avg,
-                       "Train_data_time_epoch": time.time() - end_time,
+                       "Train_time_epoch": time.time() - start_epoch,
                        "Learning_rate": optimizer.param_groups[0]['lr']}
                        ) 
 
@@ -178,6 +179,10 @@ def train(audio_model, image_model, train_loader, test_loader, args):
             shutil.copyfile("%s/models/image_model.%d.pth" % (exp_dir, epoch), 
                 "%s/models/best_image_model.pth" % (exp_dir))
         _save_progress()
+        if args.use_wandb:
+            wandb.log({"Full_time_loop": time.time() - start_time,
+                          "epoch": epoch})
+                       
         epoch += 1
 
 def validate(audio_model, image_model, val_loader, args, epoch=None):
@@ -198,6 +203,7 @@ def validate(audio_model, image_model, val_loader, args, epoch=None):
     I_embeddings = [] 
     A_embeddings = [] 
     frame_counts = []
+    start = time.time()
     with torch.no_grad():
         val_batch_loop = 0
         for i, (image_input, audio_input, nframes) in enumerate(val_loader):
@@ -245,7 +251,8 @@ def validate(audio_model, image_model, val_loader, args, epoch=None):
           .format(A_r5=A_r5, I_r5=I_r5, N=N_examples), flush=True)
     print(' * Audio R@1 {A_r1:.3f} Image R@1 {I_r1:.3f} over {N:d} validation pairs'
           .format(A_r1=A_r1, I_r1=I_r1, N=N_examples), flush=True)
-    
+    finish_time = time.time()
+    print(f"Validation time: {finish_time - start:.2f} seconds")
 
     
     if args.use_wandb:
@@ -257,7 +264,9 @@ def validate(audio_model, image_model, val_loader, args, epoch=None):
                     "A->I_R@10": I_r10,
                     "A->I_R@5": I_r5,
                     "A->I_R@1": I_r1,
-                    "epoch": epoch,}
+                    "epoch": epoch,
+                    "val_batch_time": batch_time.avg,
+                    "val_time": time.time() - start}
                     )
 
     return recalls
