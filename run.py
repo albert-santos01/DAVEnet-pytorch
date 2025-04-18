@@ -67,7 +67,12 @@ if args.resume:
         args = pickle.load(f)
 args.resume = resume
         
-print(args)
+# print(args)
+# Instead let's use the ssl-tie printing
+print('\n ******************Training Args*************************')
+print('args=\n\t\t'+'\n\t\t'.join(['%s:%s'%(str(k),str(v)) for k,v in vars(args).items()]))
+print('******************Training Args*************************')
+
 
 train_loader = torch.utils.data.DataLoader(
     dataloaders.ImageCaptionDataset(args.data_train),
