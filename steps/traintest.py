@@ -226,7 +226,8 @@ def validate(audio_model, image_model, val_loader, args, epoch=None):
             A_embeddings.append(audio_output)
             
             pooling_ratio = round(audio_input.size(-1) / audio_output.size(-1))
-            nframes.div_(pooling_ratio)
+            # nframes._div_(pooling_ratio) previously
+            nframes //= pooling_ratio
 
             frame_counts.append(nframes.cpu())
 
