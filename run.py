@@ -58,6 +58,10 @@ parser.add_argument("--run_name", type=str, default="",
         help="wandb run name")
 parser.add_argument('--use_cuda', action='store_true', help='Use cuda')
 parser.set_defaults(use_cuda=False)
+parser.add_argument('--job_id', type=str, default="",
+        help='Job ID for the current process')
+parser.add_argument('--num_workers', type=int, default=8,
+        help='Number of workers for data loading')
 
 args = parser.parse_args()
 
@@ -78,29 +82,11 @@ if args.use_cuda:
         if not torch.cuda.is_available():
                 raise ValueError("CUDA is not available. Please run with flag --use_cuda False")
 
-args.gpus = list(range(torch.cuda.device_count()))
-print('Using GPU:', args.gpus)
+gpus = list(range(torch.cuda.device_count()))
+print('Using GPU:', gpus)
 print('Number of of cores allocated:',len(os.sched_getaffinity(0)))
 print(f"{os.sched_getaffinity(0)} CPU cores that job {args.job_id} is allowed to run on")  # Will show the CPU cores your job is allowed to run on
 
-
-# print(args)
-# Instead let's use the ssl-tie printing
-print('\n ******************Training Args*************************')
-print('args=\n\t\t'+'\n\t\t'.join(['%s:%s'%(str(k),str(v)) for k,v in vars(args).items()]))
-print('******************Training Args*************************')
-
-
-train_loader = torch.utils.data.DataLoader(
-    dataloaders.ImageCaptionDataset(args.data_train),
-    batch_size=args.batch_size, shuffle=True, num_workers=8, pin_memory=True)
-
-val_loader = torch.utils.data.DataLoader(
-    dataloaders.ImageCaptionDataset(args.data_val, image_conf={'center_crop':True}),
-    batch_size=args.batch_size, shuffle=False, num_workers=8, pin_memory=True)
-
-audio_model = models.Davenet()
-image_model = models.VGG16(pretrained=args.pretrained_image_model)
 
 if not bool(args.exp_dir):
     print("exp_dir not specified, automatically creating one...")
@@ -109,7 +95,6 @@ if not bool(args.exp_dir):
         args.lr, args.n_epochs)
 
 if not args.resume:
-        print("\nexp_dir: %s" % args.exp_dir)
         exp_dir = args.exp_dir  
         counter = 1
         while os.path.exists("%s/models" % exp_dir):
@@ -119,6 +104,25 @@ if not args.resume:
         args.exp_dir = exp_dir
         with open("%s/args.pkl" % args.exp_dir, "wb") as f:
                 pickle.dump(args, f)
+        print("\nexp_dir: %s" % args.exp_dir)
+
+# print(args)
+# Instead let's use the ssl-tie printing
+print('\n ******************Training Args DAVEnet*************************')
+print('args=\n\t\t'+'\n\t\t'.join(['%s:%s'%(str(k),str(v)) for k,v in vars(args).items()]))
+print('******************Training Args DAVEnet*************************')
+
+
+train_loader = torch.utils.data.DataLoader(
+    dataloaders.ImageCaptionDataset(args.data_train),
+    batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
+
+val_loader = torch.utils.data.DataLoader(
+    dataloaders.ImageCaptionDataset(args.data_val, image_conf={'center_crop':True}),
+    batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers, pin_memory=True)
+
+audio_model = models.Davenet()
+image_model = models.VGG16(pretrained=args.pretrained_image_model)
 
 ##Albert: Wandb
 if args.use_wandb:
@@ -127,6 +131,6 @@ if args.use_wandb:
     else:
         wandb.init(project=args.wandb_project, name=args.run_name)
     wandb.config.update(args)
-    wandb.watch(audio_model)
-    wandb.watch(image_model)        
+    wandb.watch(audio_model, log="gradients", log_freq=500)
+    wandb.watch(image_model, log="gradients", log_freq=500)        
 train(audio_model, image_model, train_loader, val_loader, args)
